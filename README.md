@@ -67,6 +67,20 @@ Compilar y desplegar por SSH:
 php bin/env-builder build --dev --deploy="usuario@ip:/ruta/destino/.env"
 ```
 
+Prueba E2E reproducible (`--dev` + prioridad de `app.env`/`app.env.dev`):
+
+```bash
+composer test:e2e
+```
+
+O ejecutando el binario directamente:
+
+```bash
+php bin/env-builder-e2e-test
+```
+
+El binario de prueba escribe su fixture en un directorio temporal del sistema (`%TEMP%/env-builder-e2e` en Windows).
+
 ## Formato de salida compilada
 
 El `.env` generado incluye trazabilidad por bloque:
@@ -79,7 +93,9 @@ APP_NAME=MyApp
 APP_DEBUG=true
 ```
 
-Si una variable se redefine en un archivo posterior (incluyendo `.env.dev`), la última definición es la efectiva.
+Si una variable se redefine en un archivo posterior (incluyendo `.env.dev`), la última definición reemplaza la anterior y en el archivo compilado solo queda una entrada por clave.
+
+Además, cuando existen, `app.env` y `app.env.dev` se procesan primero para que el archivo compilado comience con esos bloques.
 
 ## Build de PHAR (distribución universal)
 
@@ -106,4 +122,3 @@ En Windows:
 ```powershell
 php .\dist\env-builder.phar build --dev
 ```
-

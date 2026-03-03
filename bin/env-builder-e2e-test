@@ -1,0 +1,120 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$autoloadCandidates = [
+    __DIR__ . '/../vendor/autoload.php',
+    'phar://env-builder.phar/vendor/autoload.php',
+];
+
+$autoloadLoaded = false;
+foreach ($autoloadCandidates as $autoloadFile) {
+    if (!is_file($autoloadFile)) {
+        continue;
+    }
+
+    require $autoloadFile;
+    $autoloadLoaded = true;
+    break;
+}
+
+if (!$autoloadLoaded) {
+    fwrite(
+        STDERR,
+        "Autoloader not found. Run composer install first or execute the packaged PHAR.\n"
+    );
+    exit(1);
+}
+
+$fixtureDir = rtrim(sys_get_temp_dir(), "\\/") . '/env-builder-e2e';
+$sourceDir = $fixtureDir . '/.env.d';
+$outputFile = $fixtureDir . '/.env';
+
+if (is_dir($fixtureDir)) {
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($fixtureDir, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    /** @var SplFileInfo $fileInfo */
+    foreach ($iterator as $fileInfo) {
+        if ($fileInfo->isDir()) {
+            rmdir($fileInfo->getPathname());
+            continue;
+        }
+
+        unlink($fileInfo->getPathname());
+    }
+
+    @rmdir($fixtureDir);
+}
+
+if (!is_dir($sourceDir) && !mkdir($sourceDir, 0775, true) && !is_dir($sourceDir)) {
+    fwrite(STDERR, sprintf("Unable to create fixture directory: %s\n", $sourceDir));
+    exit(1);
+}
+
+if (file_put_contents($sourceDir . '/aaa.env', "A=1\n") === false) {
+    fwrite(STDERR, "Unable to write fixture file aaa.env\n");
+    exit(1);
+}
+
+if (file_put_contents(
+    $sourceDir . '/app.env',
+    implode(PHP_EOL, [
+        'APP_NAME=MyApp',
+        'APP_DEBUG=false',
+        'SHARED=base',
+        'ONLY_BASE=1',
+        '',
+    ])
+) === false) {
+    fwrite(STDERR, "Unable to write fixture file app.env\n");
+    exit(1);
+}
+
+if (file_put_contents(
+    $sourceDir . '/app.env.dev',
+    implode(PHP_EOL, [
+        'APP_DEBUG=true',
+        'SHARED=dev',
+        'ONLY_DEV=1',
+        '',
+    ])
+) === false) {
+    fwrite(STDERR, "Unable to write fixture file app.env.dev\n");
+    exit(1);
+}
+
+if (file_put_contents(
+    $sourceDir . '/database.env',
+    implode(PHP_EOL, [
+        'DB_HOST=localhost',
+        'DB_PORT=3306',
+        '',
+    ])
+) === false) {
+    fwrite(STDERR, "Unable to write fixture file database.env\n");
+    exit(1);
+}
+
+if (file_put_contents($sourceDir . '/zzz.env', "Z=1\n") === false) {
+    fwrite(STDERR, "Unable to write fixture file zzz.env\n");
+    exit(1);
+}
+
+$service = new EnvBuilder\Service\BuildService();
+$summary = $service->build($sourceDir, $outputFile, true);
+
+fwrite(STDOUT, sprintf("Compiled file written to %s\n", $summary->outputFile));
+fwrite(
+    STDOUT,
+    sprintf(
+        "Processed %d source files, resolved %d variables.\n",
+        $summary->sourceCount,
+        $summary->variableCount
+    )
+);
+fwrite(STDOUT, "--- OUTPUT ---\n");
+fwrite(STDOUT, file_get_contents($outputFile) ?: "");

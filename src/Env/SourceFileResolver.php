@@ -79,7 +79,23 @@ final class SourceFileResolver
         $ordered = [];
         $consumedDev = [];
 
-        foreach ($baseFiles as $relativePath => $absolutePath) {
+        $baseOrder = array_keys($baseFiles);
+        usort(
+            $baseOrder,
+            static function (string $left, string $right): int {
+                $leftPriority = $left === 'app.env' ? 0 : 1;
+                $rightPriority = $right === 'app.env' ? 0 : 1;
+
+                if ($leftPriority !== $rightPriority) {
+                    return $leftPriority <=> $rightPriority;
+                }
+
+                return strcmp($left, $right);
+            }
+        );
+
+        foreach ($baseOrder as $relativePath) {
+            $absolutePath = $baseFiles[$relativePath];
             $ordered[] = new SourceFile($absolutePath, $relativePath, false);
 
             $devPath = $relativePath . '.dev';
@@ -90,11 +106,27 @@ final class SourceFileResolver
         }
 
         if ($includeDev) {
-            foreach ($devFiles as $relativePath => $absolutePath) {
+            $devOrder = array_keys($devFiles);
+            usort(
+                $devOrder,
+                static function (string $left, string $right): int {
+                    $leftPriority = $left === 'app.env.dev' ? 0 : 1;
+                    $rightPriority = $right === 'app.env.dev' ? 0 : 1;
+
+                    if ($leftPriority !== $rightPriority) {
+                        return $leftPriority <=> $rightPriority;
+                    }
+
+                    return strcmp($left, $right);
+                }
+            );
+
+            foreach ($devOrder as $relativePath) {
                 if (isset($consumedDev[$relativePath])) {
                     continue;
                 }
 
+                $absolutePath = $devFiles[$relativePath];
                 $ordered[] = new SourceFile($absolutePath, $relativePath, true);
             }
         }
