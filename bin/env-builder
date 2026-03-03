@@ -1,0 +1,32 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$autoloadCandidates = [
+    __DIR__ . '/../vendor/autoload.php',
+    'phar://env-builder.phar/vendor/autoload.php',
+];
+
+$autoloadLoaded = false;
+foreach ($autoloadCandidates as $autoloadFile) {
+    if (!is_file($autoloadFile)) {
+        continue;
+    }
+
+    require $autoloadFile;
+    $autoloadLoaded = true;
+    break;
+}
+
+if (!$autoloadLoaded) {
+    fwrite(
+        STDERR,
+        "Autoloader not found. Run composer install first or execute the packaged PHAR.\n"
+    );
+    exit(1);
+}
+
+$application = new EnvBuilder\Console\Application();
+exit($application->run());
+
