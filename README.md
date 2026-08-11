@@ -1,6 +1,6 @@
 # env-builder
 
-CLI en PHP 8.2+ para compilar múltiples fragmentos de entorno desde `./.env.d` en un único `.env`, con soporte de overlays `*.env.dev`, trazabilidad por bloque y despliegue remoto vía `scp`/`rsync`.
+CLI en PHP 8.2+ para compilar múltiples fragmentos de entorno desde `./.env.d` en un único `.env`, con soporte de overlays `*.env.dev` y `*.env.staging`, trazabilidad por bloque y despliegue remoto vía `scp`/`rsync`.
 
 ## Estructura recomendada
 
@@ -9,6 +9,7 @@ CLI en PHP 8.2+ para compilar múltiples fragmentos de entorno desde `./.env.d` 
 ├─ .env.d/
 │  ├─ app.env
 │  ├─ app.env.dev
+│  ├─ app.env.staging
 │  └─ database.env
 ├─ bin/
 │  └─ env-builder
@@ -55,6 +56,16 @@ Compilar incluyendo overlays `*.env.dev`:
 php bin/env-builder build --dev
 ```
 
+Compilar incluyendo overlays `*.env.staging`:
+
+```bash
+php bin/env-builder build --staging
+```
+
+`--dev` y `--staging` son mutuamente excluyentes. Sin ninguna de estas
+opciones se procesan únicamente los archivos base `*.env`, que es el modo
+destinado a producción.
+
 Salida personalizada:
 
 ```bash
@@ -67,7 +78,7 @@ Compilar y desplegar por SSH:
 php bin/env-builder build --dev --deploy="usuario@ip:/ruta/destino/.env"
 ```
 
-Prueba E2E reproducible (`--dev` + prioridad de `app.env`/`app.env.dev`):
+Prueba E2E reproducible para desarrollo y staging:
 
 ```bash
 composer test:e2e
@@ -93,9 +104,14 @@ APP_NAME=MyApp
 APP_DEBUG=true
 ```
 
-Si una variable se redefine en un archivo posterior (incluyendo `.env.dev`), la última definición reemplaza la anterior y en el archivo compilado solo queda una entrada por clave.
+Si una variable se redefine en un overlay posterior (`.env.dev` o
+`.env.staging`), la última definición reemplaza la anterior y en el archivo
+compilado solo queda una entrada por clave.
 
-Además, cuando existen, `app.env` y `app.env.dev` se procesan primero para que el archivo compilado comience con esos bloques.
+Además, `app.env` y el overlay seleccionado de `app.env` se procesan primero
+para que el archivo compilado comience con esos bloques. Cada overlay se aplica
+inmediatamente después de su archivo base; los overlays sin base se procesan al
+final en orden alfabético.
 
 ## Build de PHAR (distribución universal)
 
@@ -117,8 +133,20 @@ composer build:phar
 ./dist/env-builder.phar build --dev
 ```
 
+Para staging:
+
+```bash
+./dist/env-builder.phar build --staging
+```
+
 En Windows:
 
 ```powershell
 php .\dist\env-builder.phar build --dev
+```
+
+La integración Artisan ofrece las mismas opciones:
+
+```bash
+php artisan env-builder:build --staging
 ```
