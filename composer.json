@@ -41,6 +41,9 @@
     "build:phar": "php -d phar.readonly=0 build.php"
   },
   "config": {
+    "platform": {
+      "php": "8.2.0"
+    },
     "sort-packages": true
   }
 }
