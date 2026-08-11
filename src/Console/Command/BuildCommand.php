@@ -44,6 +44,12 @@ final class BuildCommand extends Command
                 'Include *.env.dev overlays and apply them after each base *.env file.'
             )
             ->addOption(
+                'staging',
+                null,
+                InputOption::VALUE_NONE,
+                'Include *.env.staging overlays and apply them after each base *.env file.'
+            )
+            ->addOption(
                 'deploy',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -56,6 +62,7 @@ final class BuildCommand extends Command
         $sourceDir = (string) $input->getOption('source');
         $outputFile = (string) $input->getOption('output');
         $includeDev = (bool) $input->getOption('dev');
+        $includeStaging = (bool) $input->getOption('staging');
 
         $deployTarget = $input->getOption('deploy');
         if (!is_string($deployTarget)) {
@@ -67,7 +74,8 @@ final class BuildCommand extends Command
                 sourceDir: $sourceDir,
                 outputFile: $outputFile,
                 includeDev: $includeDev,
-                deployTarget: $deployTarget
+                deployTarget: $deployTarget,
+                includeStaging: $includeStaging
             );
         } catch (EnvBuilderException $exception) {
             $output->writeln(sprintf('<error>%s</error>', $exception->getMessage()));

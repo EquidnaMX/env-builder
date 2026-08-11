@@ -29,7 +29,8 @@ if (!$autoloadLoaded) {
 
 $fixtureDir = rtrim(sys_get_temp_dir(), "\\/") . '/env-builder-e2e';
 $sourceDir = $fixtureDir . '/.env.d';
-$outputFile = $fixtureDir . '/.env';
+$devOutputFile = $fixtureDir . '/.env.dev.compiled';
+$stagingOutputFile = $fixtureDir . '/.env.staging.compiled';
 
 if (is_dir($fixtureDir)) {
     $iterator = new RecursiveIteratorIterator(
@@ -88,6 +89,19 @@ if (file_put_contents(
 }
 
 if (file_put_contents(
+    $sourceDir . '/app.env.staging',
+    implode(PHP_EOL, [
+        'APP_DEBUG=false',
+        'SHARED=staging',
+        'ONLY_STAGING=1',
+        '',
+    ])
+) === false) {
+    fwrite(STDERR, "Unable to write fixture file app.env.staging\n");
+    exit(1);
+}
+
+if (file_put_contents(
     $sourceDir . '/database.env',
     implode(PHP_EOL, [
         'DB_HOST=localhost',
@@ -105,16 +119,39 @@ if (file_put_contents($sourceDir . '/zzz.env', "Z=1\n") === false) {
 }
 
 $service = new EnvBuilder\Service\BuildService();
-$summary = $service->build($sourceDir, $outputFile, true);
+$devSummary = $service->build($sourceDir, $devOutputFile, true);
+$stagingSummary = $service->build(
+    sourceDir: $sourceDir,
+    outputFile: $stagingOutputFile,
+    includeDev: false,
+    includeStaging: true
+);
 
-fwrite(STDOUT, sprintf("Compiled file written to %s\n", $summary->outputFile));
+$devContent = file_get_contents($devOutputFile) ?: '';
+$stagingContent = file_get_contents($stagingOutputFile) ?: '';
+$expectations = [
+    'development overlay' => str_contains($devContent, 'SHARED=dev')
+        && str_contains($devContent, 'ONLY_DEV=1')
+        && !str_contains($devContent, 'ONLY_STAGING=1'),
+    'staging overlay' => str_contains($stagingContent, 'SHARED=staging')
+        && str_contains($stagingContent, 'ONLY_STAGING=1')
+        && !str_contains($stagingContent, 'ONLY_DEV=1'),
+];
+
+foreach ($expectations as $description => $passed) {
+    if (!$passed) {
+        fwrite(STDERR, sprintf("E2E assertion failed: %s\n", $description));
+        exit(1);
+    }
+}
+
+fwrite(STDOUT, sprintf("Development file written to %s\n", $devSummary->outputFile));
 fwrite(
     STDOUT,
     sprintf(
-        "Processed %d source files, resolved %d variables.\n",
-        $summary->sourceCount,
-        $summary->variableCount
+        "Development processed %d source files and staging processed %d source files.\n",
+        $devSummary->sourceCount,
+        $stagingSummary->sourceCount
     )
 );
-fwrite(STDOUT, "--- OUTPUT ---\n");
-fwrite(STDOUT, file_get_contents($outputFile) ?: "");
+fwrite(STDOUT, "PASS: development and staging overlays\n");

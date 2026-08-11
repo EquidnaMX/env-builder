@@ -14,8 +14,12 @@ final class SourceFileResolver
     /**
      * @return list<SourceFile>
      */
-    public function resolve(string $sourceDir, bool $includeDev): array
+    public function resolve(string $sourceDir, bool $includeDev, bool $includeStaging = false): array
     {
+        if ($includeDev && $includeStaging) {
+            throw new EnvBuilderException('The development and staging overlays cannot be enabled together.');
+        }
+
         $normalizedDir = rtrim($sourceDir, DIRECTORY_SEPARATOR . '/');
         if ($normalizedDir === '') {
             $normalizedDir = '.';
@@ -38,6 +42,7 @@ final class SourceFileResolver
 
         $baseFiles = [];
         $devFiles = [];
+        $stagingFiles = [];
 
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($normalizedDir, RecursiveDirectoryIterator::SKIP_DOTS)
@@ -68,6 +73,11 @@ final class SourceFileResolver
                 continue;
             }
 
+            if (str_ends_with($relativePath, '.env.staging')) {
+                $stagingFiles[$relativePath] = $absolutePath;
+                continue;
+            }
+
             if (str_ends_with($relativePath, '.env')) {
                 $baseFiles[$relativePath] = $absolutePath;
             }
@@ -75,9 +85,12 @@ final class SourceFileResolver
 
         ksort($baseFiles);
         ksort($devFiles);
+        ksort($stagingFiles);
 
         $ordered = [];
-        $consumedDev = [];
+        $consumedOverlays = [];
+        $selectedOverlays = $includeDev ? $devFiles : ($includeStaging ? $stagingFiles : []);
+        $overlaySuffix = $includeDev ? '.dev' : '.staging';
 
         $baseOrder = array_keys($baseFiles);
         usort(
@@ -98,20 +111,20 @@ final class SourceFileResolver
             $absolutePath = $baseFiles[$relativePath];
             $ordered[] = new SourceFile($absolutePath, $relativePath, false);
 
-            $devPath = $relativePath . '.dev';
-            if ($includeDev && isset($devFiles[$devPath])) {
-                $ordered[] = new SourceFile($devFiles[$devPath], $devPath, true);
-                $consumedDev[$devPath] = true;
+            $overlayPath = $relativePath . $overlaySuffix;
+            if (($includeDev || $includeStaging) && isset($selectedOverlays[$overlayPath])) {
+                $ordered[] = new SourceFile($selectedOverlays[$overlayPath], $overlayPath, $includeDev);
+                $consumedOverlays[$overlayPath] = true;
             }
         }
 
-        if ($includeDev) {
-            $devOrder = array_keys($devFiles);
+        if ($includeDev || $includeStaging) {
+            $overlayOrder = array_keys($selectedOverlays);
             usort(
-                $devOrder,
-                static function (string $left, string $right): int {
-                    $leftPriority = $left === 'app.env.dev' ? 0 : 1;
-                    $rightPriority = $right === 'app.env.dev' ? 0 : 1;
+                $overlayOrder,
+                static function (string $left, string $right) use ($overlaySuffix): int {
+                    $leftPriority = $left === 'app.env' . $overlaySuffix ? 0 : 1;
+                    $rightPriority = $right === 'app.env' . $overlaySuffix ? 0 : 1;
 
                     if ($leftPriority !== $rightPriority) {
                         return $leftPriority <=> $rightPriority;
@@ -121,13 +134,13 @@ final class SourceFileResolver
                 }
             );
 
-            foreach ($devOrder as $relativePath) {
-                if (isset($consumedDev[$relativePath])) {
+            foreach ($overlayOrder as $relativePath) {
+                if (isset($consumedOverlays[$relativePath])) {
                     continue;
                 }
 
-                $absolutePath = $devFiles[$relativePath];
-                $ordered[] = new SourceFile($absolutePath, $relativePath, true);
+                $absolutePath = $selectedOverlays[$relativePath];
+                $ordered[] = new SourceFile($absolutePath, $relativePath, $includeDev);
             }
         }
 

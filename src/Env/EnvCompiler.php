@@ -11,9 +11,9 @@ final class EnvCompiler
         private readonly EnvFileParser $parser = new EnvFileParser()
     ) {}
 
-    public function compile(string $sourceDir, bool $includeDev): CompilationResult
+    public function compile(string $sourceDir, bool $includeDev, bool $includeStaging = false): CompilationResult
     {
-        $sourceFiles = $this->resolver->resolve($sourceDir, $includeDev);
+        $sourceFiles = $this->resolver->resolve($sourceDir, $includeDev, $includeStaging);
         $processedSources = [];
         $resolvedVariables = [];
         $keyOrigins = [];

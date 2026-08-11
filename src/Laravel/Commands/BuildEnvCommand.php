@@ -14,6 +14,7 @@ final class BuildEnvCommand extends Command
                             {--source=.env.d : Source directory containing .env fragments}
                             {--output=.env : Compiled output file}
                             {--dev : Include *.env.dev overlays}
+                            {--staging : Include *.env.staging overlays}
                             {--deploy= : Deploy target user@host:/absolute/path/.env}';
 
     protected $description = 'Compile .env fragments from .env.d and optionally deploy the resulting file.';
@@ -28,6 +29,7 @@ final class BuildEnvCommand extends Command
         $sourceDir = (string) $this->option('source');
         $outputFile = (string) $this->option('output');
         $includeDev = (bool) $this->option('dev');
+        $includeStaging = (bool) $this->option('staging');
 
         $deployTarget = $this->option('deploy');
         if (!is_string($deployTarget)) {
@@ -39,7 +41,8 @@ final class BuildEnvCommand extends Command
                 sourceDir: $sourceDir,
                 outputFile: $outputFile,
                 includeDev: $includeDev,
-                deployTarget: $deployTarget
+                deployTarget: $deployTarget,
+                includeStaging: $includeStaging
             );
         } catch (EnvBuilderException $exception) {
             $this->error($exception->getMessage());
@@ -62,4 +65,3 @@ final class BuildEnvCommand extends Command
         return self::SUCCESS;
     }
 }
-

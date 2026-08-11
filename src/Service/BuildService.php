@@ -20,9 +20,10 @@ final class BuildService
         string $sourceDir,
         string $outputFile,
         bool $includeDev,
-        ?string $deployTarget = null
+        ?string $deployTarget = null,
+        bool $includeStaging = false
     ): BuildSummary {
-        $result = $this->compiler->compile($sourceDir, $includeDev);
+        $result = $this->compiler->compile($sourceDir, $includeDev, $includeStaging);
         $this->writeOutput($outputFile, $result->content);
 
         $deploymentTransport = null;
@@ -63,4 +64,3 @@ final class BuildService
         }
     }
 }
-
