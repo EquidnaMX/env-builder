@@ -11,7 +11,7 @@ final class Application extends SymfonyApplication
 {
     public function __construct()
     {
-        parent::__construct('env-builder', '1.1.0');
+        parent::__construct('env-builder', '1.1.1');
 
         $this->add(new BuildCommand());
     }

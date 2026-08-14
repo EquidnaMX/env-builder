@@ -4,13 +4,15 @@
 declare(strict_types=1);
 
 $autoloadCandidates = [
+    $GLOBALS['_composer_autoload_path'] ?? null,
     __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
     'phar://env-builder.phar/vendor/autoload.php',
 ];
 
 $autoloadLoaded = false;
 foreach ($autoloadCandidates as $autoloadFile) {
-    if (!is_file($autoloadFile)) {
+    if (!is_string($autoloadFile) || !is_file($autoloadFile)) {
         continue;
     }
 
